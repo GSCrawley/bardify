@@ -1,0 +1,20 @@
+{
+  "name": "bardify",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Bardify — the two-tongued Shakespearean translator. Modern English ⇄ the tongue of the Bard.",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node lib/engine.test.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
