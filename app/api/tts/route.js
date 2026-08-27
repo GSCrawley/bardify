@@ -6,6 +6,39 @@
 const DEFAULT_VOICE = "JBFqnCBsd6RMkjVDRZzb"; // "George" — warm British narration
 const MAX_CHARS = 2500;
 
+// GET /api/tts?probe=bardify — server-side self-test: synthesizes a
+// 5-character sample and reports success without exposing audio or key.
+export async function GET(request) {
+  const url = new URL(request.url);
+  if (url.searchParams.get("probe") !== "bardify") {
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) {
+    return Response.json({ ok: false, configured: false }, { status: 501 });
+  }
+  const res = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_VOICE}?output_format=mp3_22050_32`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: "Hark!",
+        model_id: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+      }),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    return Response.json(
+      { ok: false, configured: true, upstreamStatus: res.status, detail: detail.slice(0, 300) },
+      { status: 502 }
+    );
+  }
+  const buf = await res.arrayBuffer();
+  return Response.json({ ok: true, configured: true, sampleBytes: buf.byteLength });
+}
+
 export async function POST(request) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
