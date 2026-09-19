@@ -3,3 +3,7 @@ node_modules/
 .vercel
 .DS_Store
 *.log
+
+# Folger TEI source downloads (regenerate corpus with: node scripts/build-corpus.mjs)
+scripts/corpus-src/
+/tmp/

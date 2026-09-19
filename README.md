@@ -10,11 +10,23 @@ Built from the vocabulary, grammar, and lines of Shakespeare's actual plays and 
 - **Script Forge** — write a skit in plain English with characters and stage directions ("Exit, pursued by a bear" included); get a formatted play script, performable aloud with a different voice per character, downloadable as .txt.
 - **Insult Cannon** — genuine barbs from the plays with citations, plus fresh ones assembled from Shakespeare's own insult vocabulary.
 - **Study Hall** — searchable ~200-word glossary of Early Modern English, grammar cheat-cards, false friends, famous-lines reference.
+- **🕰 Era Speak (Generational Translator)** — rewind (or fast-forward) the Bard: render any line into Gen Alpha, Gen Z, Millennial, Gen X, Boomer, or 1920s Jazz Age slang. Browse any act and scene of the full Folger corpus (all plays, sonnets, and narrative poems — 120k+ lines), or paste your own text. Stage-meaning fidelity is scored on 
+  the **attempt-first** principle: the student renders a line in an era first, then Bardify reveals its own render and measures how many meaning-anchors survived. Adjustable slang density and a school-safe profanity tier (light cussing off by default) make it classroom-ready.
 - **Voice** — ElevenLabs text-to-speech via a server-side API route (`/api/tts`), with the browser's built-in speech synthesis as automatic fallback.
 
 ## Stack
 
-Next.js (App Router) · React · no other dependencies. The translation engine is pure JavaScript in `lib/engine.js` with its corpus in `lib/data.js`.
+Next.js (App Router) · React · no other dependencies. The translation engine is pure JavaScript in `lib/engine.js` with its corpus in `lib/data.js`; the Generational Translator lives in `lib/generational.js` with its era lexicon in `lib/generations.js` (a hand-curated, ~90-anchor meaning map — verify-before-trust, no AI at runtime, all citations point at the Folio).
+
+### The full-corpus pipeline
+
+`public/corpus/` holds a JSON render of the complete [Folger Shakespeare](https://folger.edu) texts (per work: acts → scenes → speaker-attributed lines with act.scene.line references). Rebuild it from source TEI with:
+
+```bash
+node scripts/build-corpus.mjs   # reads TEI XML zips from scripts/corpus-src/ (gitignored, 197MB)
+```
+
+Text © Folger Shakespeare Library, licensed free for **non-commercial** use — fine while Bardify is free; revisit the terms before any monetization.
 
 ## Development
 

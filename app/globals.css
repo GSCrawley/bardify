@@ -163,3 +163,42 @@
   .loading-line { font-style: italic; color: var(--ink-soft); font-size: 0.88rem; min-height: 1.2em; margin-top: 0.4rem; }
   footer { text-align:center; margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-style: italic; }
   .audio-note { font-size: 0.78rem; color: var(--ink-soft); font-style: italic; margin-top: 0.3rem; }
+
+  /* ---------- Era Speak (Generational Translator) ---------- */
+  .era-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; }
+  .era-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 0.5rem 0.9rem; border-radius: 8px; cursor: pointer;
+    background: var(--parchment-dark); color: var(--ink);
+    border: 2px solid var(--gold); font-family: inherit; font-size: 0.95rem;
+    transition: transform 0.12s ease, background 0.12s ease;
+  }
+  .era-chip small { font-size: 0.68rem; color: var(--ink-soft); font-style: italic; }
+  .era-chip:hover { transform: translateY(-2px); background: var(--gold-soft); }
+  .era-chip.active { background: var(--burgundy); color: #fff; border-color: var(--burgundy-bright); }
+  .era-chip.active small { color: #f0d9a0; }
+
+  .era-grid { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.5rem; }
+  .era-card {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem;
+    padding: 0.6rem 0.8rem; background: #fdf8ea;
+    border: 1px solid var(--gold-soft); border-radius: 6px;
+  }
+  .era-src p { font-style: italic; font-size: 0.92rem; }
+  .era-src b { font-variant: small-caps; color: var(--burgundy); }
+  .era-ref { font-size: 0.75rem; color: var(--ink-soft); }
+  .era-render { border-left: 3px solid var(--gold); padding-left: 0.7rem; font-size: 0.95rem; }
+  .era-swaps { margin-top: 0.3rem; font-size: 0.75rem; color: var(--ink-soft); }
+  .era-swaps span { display: inline-block; margin-right: 0.6rem; background: var(--parchment-dark); border-radius: 4px; padding: 1px 6px; }
+  @media (max-width: 640px) { .era-card { grid-template-columns: 1fr; } }
+
+  .score-box {
+    display: flex; gap: 1rem; align-items: center; margin-top: 0.7rem;
+    background: #fdf8ea; border: 2px solid var(--gold); border-radius: 8px; padding: 0.8rem 1rem;
+  }
+  .score-num { font-size: 2.2rem; font-weight: bold; line-height: 1; min-width: 90px; text-align: center; }
+  .score-num small { font-size: 0.9rem; font-weight: normal; color: var(--ink-soft); }
+  .score-num.good { color: #2e6b2e; }
+  .score-num.mid { color: var(--gold); }
+  .score-num.low { color: var(--burgundy-bright); }
+  .score-box code { background: var(--parchment-dark); padding: 1px 6px; border-radius: 4px; font-style: italic; }
