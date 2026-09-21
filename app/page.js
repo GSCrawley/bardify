@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   toShakespeare,
   toModern,
   generateInsult,
   quoteForTheme,
 } from "../lib/engine.js";
+import { toEra, scoreAttempt } from "../lib/generational.js";
+import { ERAS } from "../lib/generations.js";
 import {
   GLOSS_S2M,
   FAMOUS_LINES,
@@ -192,6 +194,115 @@ export default function Home() {
   // ---------- insult cannon ----------
   const [insult, setInsult] = useState(null);
 
+  // ---------- era speak (Generational Translator) ----------
+  const [eraMode, setEraMode] = useState("folio"); // "folio" | "free"
+  const [eraIdx, setEraIdx] = useState(null);
+  const [eraCode, setEraCode] = useState("");
+  const [eraWork, setEraWork] = useState(null);
+  const [eraUnit, setEraUnit] = useState(0);
+  const [eraScene, setEraScene] = useState(0);
+  const [eraFree, setEraFree] = useState(
+    "All the world's a stage, and all the men and women merely players.",
+  );
+  const [eraId, setEraId] = useState("genz");
+  const [eraDensity, setEraDensity] = useState(1);
+  const [schoolSafe, setSchoolSafe] = useState(true); // tiers: 0 = classroom-safe only
+  const [eraOut, setEraOut] = useState(null); // { rows:[{speaker,ref,src,era,swaps}], eraId }
+  const [eraChallenge, setEraChallenge] = useState("");
+  const [eraScore, setEraScore] = useState(null);
+  const [eraPeeked, setEraPeeked] = useState(false); // student peeked at Bardify's render before attempting
+  const eraWorkReq = useRef(0); // stale-response guard for loadEraWork
+
+  useEffect(() => {
+    fetch("corpus/index.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setEraIdx(d.works || []))
+      .catch(() => setEraIdx([]));
+  }, []);
+
+  function loadEraWork(code) {
+    setEraCode(code);
+    setEraWork(null);
+    setEraUnit(0);
+    setEraScene(0);
+    setEraOut(null);
+    setEraScore(null);
+    const reqId = ++eraWorkReq.current;
+    if (!code) return;
+    fetch(`corpus/${code.toLowerCase()}.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (reqId === eraWorkReq.current) setEraWork(d); // ignore stale responses
+      })
+      .catch(() => {
+        if (reqId === eraWorkReq.current) setEraWork(null);
+      });
+  }
+
+  // Flatten a scene into display rows: { speaker, ref, text } (stage directions & poem stanzas included)
+  function eraSceneRows(unitIdx = eraUnit, sceneIdx = eraScene, limit = 14) {
+    const sc = eraWork?.units?.[unitIdx]?.scenes?.[sceneIdx];
+    if (!sc) return [];
+    const rows = [];
+    for (const e of sc.entries || []) {
+      if (e.t === "speech") {
+        for (const l of e.lines || []) {
+          rows.push({ speaker: e.speaker, ref: l.n, text: l.text });
+          if (rows.length >= limit) return rows;
+        }
+      } else if (e.t === "text") {
+        for (const l of e.lines || []) {
+          rows.push({ speaker: null, ref: l.n, text: l.text });
+          if (rows.length >= limit) return rows;
+        }
+      } else if (e.text && rows.length < limit) {
+        rows.push({ speaker: "⌂", ref: null, text: "[" + e.text.trim() + "]" });
+      }
+    }
+    return rows;
+  }
+
+  function renderEra() {
+    const opts = { density: eraDensity, tier: schoolSafe ? 0 : 1 };
+    setEraScore(null);
+    setEraPeeked(false);
+    setEraChallenge("");
+    if (eraMode === "folio") {
+      const rows = eraSceneRows();
+      if (!rows.length) return;
+      setEraOut({
+        eraId,
+        rows: rows.map((r) => {
+          const res = r.speaker === "⌂" ? { text: r.text, swaps: [] } : toEra(r.text, eraId, opts);
+          return { ...r, src: r.text, era: res.text, swaps: res.swaps };
+        }),
+      });
+    } else {
+      if (!eraFree.trim()) return;
+      const res = toEra(eraFree, eraId, opts);
+      setEraOut({ eraId, rows: [{ speaker: null, ref: null, src: eraFree, era: res.text, swaps: res.swaps }] });
+    }
+  }
+
+  function measureFidelity() {
+    const row = eraOut?.rows?.find((r) => r.speaker !== "⌂");
+    if (!row || !eraChallenge.trim()) return;
+    setEraScore(scoreAttempt(row.src, eraChallenge, eraOut.eraId));
+  }
+
+  function downloadEraScroll() {
+    if (!eraOut) return;
+    const eraInfo = ERAS.find((e) => e.id === eraOut.eraId);
+    let c = "BARDIFY — THE GENERATIONAL TRANSLATOR\nRendered into " + eraInfo.name + " (" + eraInfo.years + ")\n" + "=".repeat(40) + "\n\n";
+    eraOut.rows.forEach((r) => {
+      c += (r.speaker && r.speaker !== "⌂" ? r.speaker + "  " : "") + (r.ref ? r.ref + "  " : "") + "\n";
+      c += "  FOLIO:     " + r.src + "\n";
+      c += "  " + eraInfo.name.toUpperCase() + ":  " + r.era + "\n\n";
+    });
+    c += "\n— Bardify Era Speak, texts from the Folger Shakespeare (folger.edu), free for non-commercial use\n";
+    download("bardify-era-speak.txt", c);
+  }
+
   // ---------- study hall ----------
   const [glossFilter, setGlossFilter] = useState("");
   const glossEntries = useMemo(() => {
@@ -228,6 +339,7 @@ export default function Home() {
           ["translate", "⇄ Translate"],
           ["forge", "✍ Script Forge"],
           ["insult", "☄ Insult Cannon"],
+          ["era", "🕰 Era Speak"],
           ["study", "📖 Study Hall"],
         ].map(([key, label]) => (
           <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
@@ -602,6 +714,184 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ============ ERA SPEAK (Generational Translator) ============ */}
+      {tab === "era" && (
+        <section className="tab active">
+          <div className="panel">
+            <p className="direction-label">The Generational Translator — the Bard, four hundred years of slang deep</p>
+            <p style={{ fontSize: "0.9rem", color: "var(--ink-soft)", margin: "0.3rem 0 0.7rem" }}>
+              Pick a passage from the Folger corpus (or paste your own), choose a generation, and hear the Bard
+              speak it. Then attempt it yourself and measure thy fidelity against the original.
+            </p>
+            <div className="swap-row">
+              <button className={"btn small " + (eraMode === "folio" ? "" : "secondary")} onClick={() => setEraMode("folio")}>
+                📜 From the Folio
+              </button>
+              <button className={"btn small " + (eraMode === "free" ? "" : "secondary")} onClick={() => setEraMode("free")}>
+                ✒ Free Text
+              </button>
+              <label style={{ fontSize: "0.85rem", marginLeft: "auto" }}>
+                <input type="checkbox" checked={schoolSafe} onChange={(e) => setSchoolSafe(e.target.checked)} style={{ marginRight: 4 }} />
+                Keep it school-safe
+              </label>
+            </div>
+
+            {eraMode === "folio" && (
+              <div className="controls">
+                <label htmlFor="eraWorkSel">Work:</label>
+                <select id="eraWorkSel" value={eraCode} onChange={(e) => loadEraWork(e.target.value)}>
+                  <option value="">— choose from the Folger shelves —</option>
+                  {(eraIdx || []).map((w) => (
+                    <option key={w.code} value={w.code}>
+                      {w.title} ({w.kind})
+                    </option>
+                  ))}
+                </select>
+                {eraWork && eraWork.units?.length > 1 && (
+                  <>
+                    <label htmlFor="eraUnitSel">Act:</label>
+                    <select id="eraUnitSel" value={eraUnit} onChange={(e) => { setEraUnit(+e.target.value); setEraScene(0); setEraOut(null); }}>
+                      {eraWork.units.map((u, i) => (
+                        <option key={i} value={i}>Act {u.label}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                {eraWork && eraWork.units?.[eraUnit]?.scenes?.length > 1 && (
+                  <>
+                    <label htmlFor="eraSceneSel">Scene:</label>
+                    <select id="eraSceneSel" value={eraScene} onChange={(e) => { setEraScene(+e.target.value); setEraOut(null); }}>
+                      {eraWork.units[eraUnit].scenes.map((s, i) => (
+                        <option key={i} value={i}>Scene {s.label}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+            )}
+
+            {eraMode === "free" && (
+              <textarea
+                value={eraFree}
+                onChange={(e) => { setEraFree(e.target.value); setEraOut(null); }}
+                placeholder="Paste any passage here — Shakespeare's or thine own…"
+              />
+            )}
+
+            <div className="era-chips">
+              {ERAS.map((e) => (
+                <button
+                  key={e.id}
+                  className={"era-chip" + (eraId === e.id ? " active" : "")}
+                  onClick={() => { setEraId(e.id); setEraOut(null); setEraScore(null); }}
+                  title={e.tagline}
+                >
+                  {e.name}
+                  <small>{e.years}</small>
+                </button>
+              ))}
+            </div>
+
+            <div className="btn-row" style={{ alignItems: "center" }}>
+              <button className="btn" onClick={renderEra}>Speak in {ERAS.find((x) => x.id === eraId)?.name}!</button>
+              <span className="slider-wrap">
+                <label htmlFor="eraDensity">Slang level:</label>
+                <select id="eraDensity" value={eraDensity} onChange={(e) => setEraDensity(+e.target.value)}>
+                  <option value={0}>A dash</option>
+                  <option value={1}>Sprinkled</option>
+                  <option value={2}>Drenched</option>
+                </select>
+              </span>
+            </div>
+          </div>
+
+          {eraOut && (
+            <div className="panel">
+              <div className="era-grid">
+                {eraOut.rows.map((r, i) => {
+                  const coveredIdx = eraOut.rows.findIndex((x) => x.speaker !== "⌂");
+                  const covered = coveredIdx === i && !eraScore;
+                  return (
+                    <div className="era-card" key={i}>
+                      <div className="era-src">
+                        {r.speaker && r.speaker !== "⌂" && <b>{r.speaker}</b>}
+                        {r.ref && <span className="era-ref"> {r.ref}</span>}
+                        <p>{r.src}</p>
+                      </div>
+                      <div className={"era-render" + (covered ? " covered" : "")}>
+                        {covered ? (
+                          <button className="era-cover" onClick={() => setEraPeeked(true)}>
+                            {eraPeeked ? r.era : "🔒 Attempt it first in the challenge below — or tap to break the seal"}
+                          </button>
+                        ) : (
+                          <>
+                            <p>{r.era}</p>
+                            {r.swaps.length > 0 && (
+                              <p className="era-swaps">
+                                {r.swaps.slice(0, 4).map((s, j) => (
+                                  <span key={j}>{s.from} → {s.to}</span>
+                                ))}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="btn-row">
+                <button className="btn secondary" onClick={() => speak(eraOut.rows.map((r) => r.era).join(" "), { voiceId })}>
+                  🔊 Hear the Era
+                </button>
+                <button className="btn secondary" onClick={stopSpeech}>⏹ Silence</button>
+                <button className="btn secondary" onClick={downloadEraScroll}>📜 Download Scroll (.txt)</button>
+              </div>
+
+              {/* attempt-first challenge: the student renders, THEN Bardify weighs fidelity */}
+              {eraOut.rows.some((r) => r.speaker !== "⌂") && (
+                <div className="famous" style={{ marginTop: "0.9rem" }}>
+                  🎯 <strong>Thy turn, student.</strong> The first line&apos;s render is sealed.
+                  Render it in {ERAS.find((x) => x.id === eraOut.eraId)?.name} thyself first,
+                  then measure how faithfully thou kept'st the Bard's meaning.
+                  <textarea
+                    style={{ marginTop: "0.5rem" }}
+                    value={eraChallenge}
+                    onChange={(e) => { setEraChallenge(e.target.value); setEraScore(null); }}
+                    placeholder="Write thine own era-render here…"
+                  />
+                  <div className="btn-row">
+                    <button className="btn small" onClick={measureFidelity}>Reveal &amp; Measure Fidelity</button>
+                  </div>
+                  {eraScore && (
+                    <div className="score-box">
+                      <div className={"score-num " + (eraScore.score >= 70 ? "good" : eraScore.score >= 40 ? "mid" : "low")}>
+                        {eraScore.score}<small>/100</small>
+                      </div>
+                      <div>
+                        <p><b>{eraScore.kept.length}</b> of {eraScore.kept.length + eraScore.missed.length} meaning-anchors kept
+                          — {eraScore.eraFlair} era flourishes found.</p>
+                        {eraPeeked && (
+                          <p style={{ fontSize: "0.85rem", color: "var(--burgundy)" }}>
+                            ⚠ The seal was broken before scoring — this measure counts for practice, not proof.
+                          </p>
+                        )}
+                        {eraScore.missed.length > 0 && (
+                          <p>Missed meanings: {eraScore.missed.map((m) => <code key={m} style={{ marginRight: 6 }}>{m}</code>)}</p>
+                        )}
+                        <p style={{ fontSize: "0.85rem", fontStyle: "italic" }}>
+                          Bardify&apos;s own render, for comparison: &ldquo;{(eraOut.rows.find((r) => r.speaker !== "⌂") || eraOut.rows[0]).era.slice(0, 140)}&rdquo;
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
 
