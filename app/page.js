@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   toShakespeare,
   toModern,
@@ -210,6 +210,8 @@ export default function Home() {
   const [eraOut, setEraOut] = useState(null); // { rows:[{speaker,ref,src,era,swaps}], eraId }
   const [eraChallenge, setEraChallenge] = useState("");
   const [eraScore, setEraScore] = useState(null);
+  const [eraPeeked, setEraPeeked] = useState(false); // student peeked at Bardify's render before attempting
+  const eraWorkReq = useRef(0); // stale-response guard for loadEraWork
 
   useEffect(() => {
     fetch("corpus/index.json")
@@ -225,11 +227,16 @@ export default function Home() {
     setEraScene(0);
     setEraOut(null);
     setEraScore(null);
+    const reqId = ++eraWorkReq.current;
     if (!code) return;
     fetch(`corpus/${code.toLowerCase()}.json`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setEraWork(d))
-      .catch(() => setEraWork(null));
+      .then((d) => {
+        if (reqId === eraWorkReq.current) setEraWork(d); // ignore stale responses
+      })
+      .catch(() => {
+        if (reqId === eraWorkReq.current) setEraWork(null);
+      });
   }
 
   // Flatten a scene into display rows: { speaker, ref, text } (stage directions & poem stanzas included)
@@ -258,6 +265,8 @@ export default function Home() {
   function renderEra() {
     const opts = { density: eraDensity, tier: schoolSafe ? 0 : 1 };
     setEraScore(null);
+    setEraPeeked(false);
+    setEraChallenge("");
     if (eraMode === "folio") {
       const rows = eraSceneRows();
       if (!rows.length) return;
@@ -802,25 +811,37 @@ export default function Home() {
           {eraOut && (
             <div className="panel">
               <div className="era-grid">
-                {eraOut.rows.map((r, i) => (
-                  <div className="era-card" key={i}>
-                    <div className="era-src">
-                      {r.speaker && r.speaker !== "⌂" && <b>{r.speaker}</b>}
-                      {r.ref && <span className="era-ref"> {r.ref}</span>}
-                      <p>{r.src}</p>
+                {eraOut.rows.map((r, i) => {
+                  const coveredIdx = eraOut.rows.findIndex((x) => x.speaker !== "⌂");
+                  const covered = coveredIdx === i && !eraScore;
+                  return (
+                    <div className="era-card" key={i}>
+                      <div className="era-src">
+                        {r.speaker && r.speaker !== "⌂" && <b>{r.speaker}</b>}
+                        {r.ref && <span className="era-ref"> {r.ref}</span>}
+                        <p>{r.src}</p>
+                      </div>
+                      <div className={"era-render" + (covered ? " covered" : "")}>
+                        {covered ? (
+                          <button className="era-cover" onClick={() => setEraPeeked(true)}>
+                            {eraPeeked ? r.era : "🔒 Attempt it first in the challenge below — or tap to break the seal"}
+                          </button>
+                        ) : (
+                          <>
+                            <p>{r.era}</p>
+                            {r.swaps.length > 0 && (
+                              <p className="era-swaps">
+                                {r.swaps.slice(0, 4).map((s, j) => (
+                                  <span key={j}>{s.from} → {s.to}</span>
+                                ))}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="era-render">
-                      <p>{r.era}</p>
-                      {r.swaps.length > 0 && (
-                        <p className="era-swaps">
-                          {r.swaps.slice(0, 4).map((s, j) => (
-                            <span key={j}>{s.from} → {s.to}</span>
-                          ))}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="btn-row">
                 <button className="btn secondary" onClick={() => speak(eraOut.rows.map((r) => r.era).join(" "), { voiceId })}>
@@ -833,8 +854,9 @@ export default function Home() {
               {/* attempt-first challenge: the student renders, THEN Bardify weighs fidelity */}
               {eraOut.rows.some((r) => r.speaker !== "⌂") && (
                 <div className="famous" style={{ marginTop: "0.9rem" }}>
-                  🎯 <strong>Thy turn, student.</strong> Render that first line in {ERAS.find((x) => x.id === eraOut.eraId)?.name}
-                  thyself — then measure how faithfully thou kept'st the Bard's meaning.
+                  🎯 <strong>Thy turn, student.</strong> The first line&apos;s render is sealed.
+                  Render it in {ERAS.find((x) => x.id === eraOut.eraId)?.name} thyself first,
+                  then measure how faithfully thou kept'st the Bard's meaning.
                   <textarea
                     style={{ marginTop: "0.5rem" }}
                     value={eraChallenge}
@@ -852,6 +874,11 @@ export default function Home() {
                       <div>
                         <p><b>{eraScore.kept.length}</b> of {eraScore.kept.length + eraScore.missed.length} meaning-anchors kept
                           — {eraScore.eraFlair} era flourishes found.</p>
+                        {eraPeeked && (
+                          <p style={{ fontSize: "0.85rem", color: "var(--burgundy)" }}>
+                            ⚠ The seal was broken before scoring — this measure counts for practice, not proof.
+                          </p>
+                        )}
                         {eraScore.missed.length > 0 && (
                           <p>Missed meanings: {eraScore.missed.map((m) => <code key={m} style={{ marginRight: 6 }}>{m}</code>)}</p>
                         )}

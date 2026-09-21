@@ -202,3 +202,12 @@
   .score-num.mid { color: var(--gold); }
   .score-num.low { color: var(--burgundy-bright); }
   .score-box code { background: var(--parchment-dark); padding: 1px 6px; border-radius: 4px; font-style: italic; }
+
+  .era-cover {
+    width: 100%; text-align: center; cursor: pointer;
+    background: repeating-linear-gradient(45deg, var(--parchment-dark), var(--parchment-dark) 8px, var(--parchment) 8px, var(--parchment) 16px);
+    border: 1px dashed var(--gold); border-radius: 5px;
+    font-family: inherit; font-style: italic; color: var(--ink-soft);
+    font-size: 0.85rem; padding: 0.9rem 0.6rem;
+  }
+  .era-cover:hover { border-color: var(--burgundy); color: var(--burgundy); }
