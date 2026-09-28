@@ -9,6 +9,7 @@ import {
 } from "../lib/engine.js";
 import { toEra, scoreAttempt } from "../lib/generational.js";
 import { ERAS } from "../lib/generations.js";
+import { loadBoard, notchScore, removeEntry, clearBoard, toCSV } from "../lib/leaderboard.js";
 import {
   GLOSS_S2M,
   FAMOUS_LINES,
@@ -213,11 +214,18 @@ export default function Home() {
   const [eraPeeked, setEraPeeked] = useState(false); // student peeked at Bardify's render before attempting
   const eraWorkReq = useRef(0); // stale-response guard for loadEraWork
 
+  // ---------- hall of fame (leaderboard) ----------
+  const [board, setBoard] = useState([]);
+  const [playerName, setPlayerName] = useState("");
+  const [notchedId, setNotchedId] = useState(null); // id of entry just notched (for quick undo)
+  const [boardFilter, setBoardFilter] = useState("all"); // era filter on the board
+
   useEffect(() => {
     fetch("corpus/index.json")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setEraIdx(d.works || []))
       .catch(() => setEraIdx([]));
+    setBoard(loadBoard());
   }, []);
 
   function loadEraWork(code) {
@@ -287,7 +295,38 @@ export default function Home() {
   function measureFidelity() {
     const row = eraOut?.rows?.find((r) => r.speaker !== "⌂");
     if (!row || !eraChallenge.trim()) return;
+    setNotchedId(null);
     setEraScore(scoreAttempt(row.src, eraChallenge, eraOut.eraId));
+  }
+
+  // Only sealed (attempt-first-honored) measured attempts may be notched to the board
+  function notchAttempt() {
+    const row = eraOut?.rows?.find((r) => r.speaker !== "⌂");
+    if (!eraScore || !playerName.trim() || eraPeeked) return;
+    const workTitle = eraWork?.title || (eraMode === "free" ? "Free text" : "");
+    const entry = notchScore({
+      name: playerName,
+      score: eraScore.score,
+      kept: eraScore.kept.length,
+      total: eraScore.kept.length + eraScore.missed.length,
+      eraId: eraOut.eraId,
+      eraName: ERAS.find((x) => x.id === eraOut.eraId)?.name || eraOut.eraId,
+      work: workTitle,
+      ref: row?.ref || "",
+      sealed: !eraPeeked,
+    });
+    setNotchedId(entry.id);
+    setBoard(loadBoard());
+  }
+
+  function exportBoardCSV() {
+    const blob = new Blob([toCSV(board)], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bardify-hall-of-fame.csv";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
   function downloadEraScroll() {
@@ -340,6 +379,7 @@ export default function Home() {
           ["forge", "✍ Script Forge"],
           ["insult", "☄ Insult Cannon"],
           ["era", "🕰 Era Speak"],
+          ["board", "🏆 Hall of Fame"],
           ["study", "📖 Study Hall"],
         ].map(([key, label]) => (
           <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>
@@ -630,7 +670,66 @@ export default function Home() {
         </section>
       )}
 
-      {/* ============ STUDY HALL ============ */}
+      {/* ============ HALL OF FAME (leaderboard) ============ */}
+      {tab === "board" && (() => {
+        const erasShown = [...new Set(board.map((e) => e.eraId))];
+        const rows = board.filter((e) => boardFilter === "all" || e.eraId === boardFilter).slice(0, 20);
+        return (
+          <section className="tab active">
+            <div className="panel">
+              <h2>🏆 The Hall of Fame</h2>
+              <p className="board-note">
+                Every notch is a <b>sealed</b> attempt — the student rendered the line <i>before</i> Bardify revealed
+                its own. Peeked scores are practice only and never grace this board. Scores live on this device,
+                so it shines brightest on the classroom&apos;s shared screen.
+              </p>
+              {board.length > 0 ? (
+                <>
+                  <div className="btn-row" style={{ justifyContent: "space-between" }}>
+                    <span className="slider-wrap">
+                      <label htmlFor="boardEra">Era:</label>
+                      <select id="boardEra" value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)}>
+                        <option value="all">All eras</option>
+                        {erasShown.map((id) => (
+                          <option key={id} value={id}>{ERAS.find((x) => x.id === id)?.name || id}</option>
+                        ))}
+                      </select>
+                    </span>
+                    <span>
+                      <button className="btn small secondary" onClick={exportBoardCSV}>⬇ Export CSV</button>{" "}
+                      <button
+                        className="btn small plain"
+                        onClick={() => { if (window.confirm("Open a new class period and wipe the board clean?")) { clearBoard(); setBoard([]); } }}
+                      >
+                        ✦ New class period
+                      </button>
+                    </span>
+                  </div>
+                  <ol className="board-list">
+                    {rows.map((e, i) => (
+                      <li key={e.id} className={"board-row" + (i < 3 ? " board-medal" : "")}> 
+                        <span className="board-rank">{["🥇", "🥈", "🥉"][i] || i + 1 + "."}</span>
+                        <span className="board-name">{e.name}</span>
+                        <span className="board-meta">
+                          {e.eraName}{e.work ? " · " + e.work : ""}{e.ref ? " " + e.ref : ""}
+                          {e.sealed ? " 🔒" : ""}
+                        </span>
+                        <span className="board-score">{e.score}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              ) : (
+                <div className="famous" style={{ marginTop: "1rem" }}>
+                  No players have notched a score yet. Send students to <b>Era Speak</b>, have them render a sealed
+                  attempt, and measure its fidelity — the first name graces this empty stage.
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      })()}
+
       {tab === "study" && (
         <section className="tab active">
           <div className="panel">
@@ -885,6 +984,30 @@ export default function Home() {
                         <p style={{ fontSize: "0.85rem", fontStyle: "italic" }}>
                           Bardify&apos;s own render, for comparison: &ldquo;{(eraOut.rows.find((r) => r.speaker !== "⌂") || eraOut.rows[0]).era.slice(0, 140)}&rdquo;
                         </p>
+                        {!eraPeeked && !notchedId && (
+                          <div className="notch-row">
+                            <input
+                              type="text"
+                              maxLength={24}
+                              value={playerName}
+                              onChange={(e) => setPlayerName(e.target.value)}
+                              placeholder="Thy stage name…"
+                              onKeyDown={(e) => { if (e.key === "Enter") notchAttempt(); }}
+                            />
+                            <button className="btn small" onClick={notchAttempt} disabled={!playerName.trim()}>
+                              🏆 Notch to the Hall of Fame
+                            </button>
+                          </div>
+                        )}
+                        {notchedId && (
+                          <div className="notch-row">
+                            <span className="notched-done">✓ Notched for <b>{playerName.trim().slice(0, 24)}</b></span>
+                            <button className="btn small secondary" onClick={() => setTab("board")}>View board</button>
+                            <button className="btn small plain" onClick={() => { removeEntry(notchedId); setNotchedId(null); setBoard(loadBoard()); }}>
+                              Undo
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

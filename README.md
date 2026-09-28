@@ -12,6 +12,7 @@ Built from the vocabulary, grammar, and lines of Shakespeare's actual plays and 
 - **Study Hall** — searchable ~200-word glossary of Early Modern English, grammar cheat-cards, false friends, famous-lines reference.
 - **🕰 Era Speak (Generational Translator)** — rewind (or fast-forward) the Bard: render any line into Gen Alpha, Gen Z, Millennial, Gen X, Boomer, or 1920s Jazz Age slang. Browse any act and scene of the full Folger corpus (all plays, sonnets, and narrative poems — 120k+ lines), or paste your own text. Stage-meaning fidelity is scored on 
   the **attempt-first** principle: the student renders a line in an era first, then Bardify reveals its own render and measures how many meaning-anchors survived. Adjustable slang density and a school-safe profanity tier (light cussing off by default) make it classroom-ready.
+- **🏆 Hall of Fame (Class Leaderboard)** — attempt-first, made competitive. After a fidelity score is measured, the student notches it to the board with a stage name. Only sealed attempts (no peeking at Bardify's render first) may enter the board — peeked runs are practice, not proof. Offline and device-local (localStorage), ranked with medals, filterable by era, resettable per class period, and exportable to CSV for grade books.
 - **Voice** — ElevenLabs text-to-speech via a server-side API route (`/api/tts`), with the browser's built-in speech synthesis as automatic fallback.
 
 ## Stack
