@@ -2,7 +2,7 @@
   "name": "bardify",
   "version": "2.0.0",
   "private": true,
-  "description": "Bardify — the two-tongued Shakespearean translator. Modern English ⇄ the tongue of the Bard.",
+  "description": "Bardify \u2014 the two-tongued Shakespearean translator. Modern English \u21c4 the tongue of the Bard.",
   "engines": {
     "node": "24.x"
   },
@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node lib/generational.test.mjs"
+    "test": "node lib/generational.test.mjs && node lib/leaderboard.test.mjs"
   },
   "dependencies": {
     "next": "^15.5.6",

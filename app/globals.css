@@ -211,3 +211,39 @@
     font-size: 0.85rem; padding: 0.9rem 0.6rem;
   }
   .era-cover:hover { border-color: var(--burgundy); color: var(--burgundy); }
+
+  /* ---------- Hall of Fame (leaderboard) ---------- */
+  .board-note {
+    font-size: 0.9rem; font-style: italic; color: var(--ink-soft);
+    border-left: 3px solid var(--gold); padding-left: 0.8rem; margin: 0.6rem 0 1rem;
+  }
+  .board-list { list-style: none; padding: 0; margin: 0.8rem 0 0; counter-reset: none; }
+  .board-row {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.55rem 0.8rem; margin-bottom: 0.45rem;
+    background: var(--parchment); border: 1px solid var(--gold); border-radius: 6px;
+  }
+  .board-row.board-medal { border-width: 2px; background: var(--parchment-dark); }
+  .board-rank { width: 2rem; text-align: center; font-weight: 700; color: var(--burgundy); flex: none; }
+  .board-name { font-weight: 700; }
+  .board-meta { font-size: 0.8rem; color: var(--ink-soft); flex: 1; font-style: italic; }
+  .board-score {
+    font-size: 1.25rem; font-weight: 700; color: var(--burgundy);
+    font-variant-numeric: tabular-nums; flex: none;
+  }
+  .notch-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.6rem; flex-wrap: wrap; }
+  .notch-row input[type="text"] {
+    font-family: inherit; font-size: 0.95rem; padding: 0.4rem 0.7rem;
+    background: var(--parchment); border: 1px solid var(--gold); border-radius: 5px;
+    color: var(--ink); min-width: 12rem;
+  }
+  .notch-row input[type="text"]:focus { outline: 2px solid var(--burgundy); outline-offset: 1px; }
+  .notched-done { color: #2f6b2f; font-weight: 600; }
+  .btn.plain { background: transparent; border: 1px solid var(--gold); color: var(--ink-soft); }
+  .btn.plain:hover { border-color: var(--burgundy); color: var(--burgundy); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  @media (max-width: 640px) {
+    .board-row { flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+    .board-meta { flex-basis: 100%; order: 3; }
+    .board-score { margin-left: auto; }
+  }
